@@ -29,10 +29,13 @@ Then open **http://localhost:5178**.
 By default it pulls **4 pages of AOTY (~240 albums)**. Change it with
 `AOTY_PAGES=6 npm start` (each page ≈ 60 albums).
 
-The first load scrapes AOTY (~instant) and then resolves genre + artwork for each
-album via iTunes (throttled to respect the API — a few minutes for 240 albums the
-first time; results are cached to `cache/genres.json`, so later runs are fast). A
-progress bar shows while it works. Use **↻ Refresh** to re-scrape.
+The first load scrapes AOTY (~instant) and then resolves genre + artwork + Bandcamp
+for each album. Cold first run is **~45s for ~240 albums** (concurrent lookups,
+lightly throttled to respect the APIs). Results are cached to
+`cache/genres.json` + `cache/bandcamp.json` and persisted every 40 albums, so an
+interrupted run resumes and later runs only look up NEW albums — a warm/delta
+build is **a few seconds**. A music equalizer + "now resolving" slideshow shows
+while it works. Use **↻ Refresh** to re-scrape.
 
 ## Adding the newalbumreleases.net feed (optional)
 1. Open `https://newalbumreleases.net/` in your browser and let the Cloudflare check pass.
