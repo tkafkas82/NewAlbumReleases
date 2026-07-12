@@ -1,0 +1,63 @@
+# New Album Releases 🎵
+
+A small local web app that shows the newest album releases, **grouped by genre**,
+**sorted by rating (highest → lowest)**, each with **Spotify / YouTube Music /
+YouTube** links.
+
+## Sources
+- **AlbumOfTheYear.org** — the new-releases list + critic/user **ratings** (scraped server-side; no browser automation needed). AOTY's critic score already aggregates Pitchfork, Metacritic, etc.
+- **iTunes Search API** (free, no key) — **genre** + artwork per album.
+- **Pitchfork "Best New Music"** — Pitchfork's curated best-of-the-moment picks. Matching albums get a gold **★ Best New Music** badge; BNM picks you don't already have are folded in. (Pitchfork's numeric scores render client-side on heavy review pages, so they're not scraped — the BNM flag is the reliable signal, and AOTY's critic score already includes Pitchfork.)
+- **newalbumreleases.net** — *optional*. The site is behind an aggressive Cloudflare
+  challenge that blocks servers, so it's only included if you paste a `cf_clearance`
+  cookie from your own browser (see the ⚙ panel in the app). Everything works without it.
+
+> **Not available:** Rough Trade and AOTY's own "albums of the month/year" pages are Cloudflare-blocked to servers, so they can't be scraped. Pitchfork Best New Music serves as the curated critical list instead.
+
+Streaming buttons are plain search deep-links (no API keys, no login).
+
+## Run
+```bash
+npm install
+npm start
+```
+Then open **http://localhost:5178**.
+
+By default it pulls **4 pages of AOTY (~240 albums)**. Change it with
+`AOTY_PAGES=6 npm start` (each page ≈ 60 albums).
+
+The first load scrapes AOTY (~instant) and then resolves genre + artwork for each
+album via iTunes (throttled to respect the API — a few minutes for 240 albums the
+first time; results are cached to `cache/genres.json`, so later runs are fast). A
+progress bar shows while it works. Use **↻ Refresh** to re-scrape.
+
+## Adding the newalbumreleases.net feed (optional)
+1. Open `https://newalbumreleases.net/` in your browser and let the Cloudflare check pass.
+2. DevTools (F12) → **Application ▸ Cookies** → copy the `cf_clearance` value.
+3. Console → run `navigator.userAgent` and copy it.
+4. In the app, click **⚙**, paste both, **Save & scrape**.
+
+The cookie is IP/User-Agent-bound and expires after a while; re-paste when NAR items stop appearing.
+
+## Removing albums you don't like
+Each card has a **×** (top-left) to remove an album. Removed albums are remembered
+in your browser (`localStorage`) and stay gone across restarts and re-scrapes.
+Click **🚫 Hidden** in the header to review them and **↺** to restore any.
+
+## Notes
+- Ratings come from AOTY and are 0–100 (green ≥75, yellow 60–74, red <60, **NR** = no rating yet).
+- `cache/`, `config.json`, and `node_modules/` are git-ignored. The cookie lives only in your local `config.json`.
+- Change the port with `PORT=5200 npm start`.
+
+## Files
+```
+server.js            Express server + build orchestration/state
+lib/aoty.js          AOTY /releases scraper (albums + ratings)
+lib/genre.js         iTunes + Deezer genre/artwork lookup (cached)
+lib/nar.js           optional newalbumreleases.net feed (cookie-gated)
+lib/build.js         merge + de-dupe + enrich pipeline
+lib/links.js         streaming deep-links + album keys
+lib/http.js          fetch helpers (UA, retry, concurrency)
+lib/store.js         JSON cache/config on disk
+public/index.html    the UI (genre nav, cards, ratings, links, settings)
+```

@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Album Releases · by genre &amp; rating</title>
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#141925; --panel2:#0f1420; --line:#232c3d;
+    --txt:#e8ecf4; --muted:#8a95a9; --accent:#6ea8fe;
+    --spotify:#1db954; --yt:#ff3b30; --ytm:#ff3b30; --apple:#fc5c7d;
+    --hi:#2fd18b; --mid:#f5b942; --lo:#ff6b6b; --nr:#5a6579;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:radial-gradient(1100px 560px at 75% -10%,#182241 0%,var(--bg) 55%);
+    color:var(--txt);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;min-height:100vh}
+  a{color:inherit}
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(10px);
+    background:linear-gradient(180deg,rgba(11,14,20,.92),rgba(11,14,20,.72));border-bottom:1px solid var(--line)}
+  .bar{max-width:1200px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px;letter-spacing:.3px;white-space:nowrap}
+  h1 span{color:var(--accent)}
+  .meta{color:var(--muted);font-size:12px}
+  .grow{flex:1 1 auto}
+  input#q{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:999px;
+    padding:8px 14px;font-size:14px;min-width:180px;outline:none}
+  input#q:focus{border-color:var(--accent)}
+  button.btn{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:999px;
+    padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+  button.btn:hover{border-color:var(--accent);color:var(--accent)}
+  button.btn:active{transform:translateY(1px)}
+  button.btn b{color:var(--accent);margin-left:2px}
+  button.btn.on{border-color:var(--accent);color:var(--accent);background:rgba(110,168,254,.12)}
+  .nav{max-width:1200px;margin:0 auto;padding:6px 20px 12px;display:flex;gap:8px;flex-wrap:wrap}
+  .chip{font-size:12px;font-weight:700;color:var(--muted);background:var(--panel);border:1px solid var(--line);
+    border-radius:999px;padding:5px 11px;cursor:pointer;text-decoration:none}
+  .chip:hover{color:var(--accent);border-color:var(--accent)}
+  .chip b{color:var(--txt);margin-left:5px;font-weight:800}
+
+  .wrap{max-width:1200px;margin:0 auto;padding:8px 20px 80px}
+  .progress{margin:20px 0;color:var(--muted);font-size:13px}
+  .track{height:8px;background:var(--panel);border-radius:999px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
+  .fill{height:100%;background:linear-gradient(90deg,var(--accent),#9b6efe);width:0;transition:width .4s}
+
+  section{margin:26px 0 8px}
+  .ghead{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  .ghead h2{margin:0;font-size:19px}
+  .ghead .n{color:var(--muted);font-size:13px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  .card{position:relative;display:flex;gap:12px;background:linear-gradient(180deg,var(--panel),var(--panel2));
+    border:1px solid var(--line);border-radius:14px;padding:12px;overflow:hidden}
+  .card:hover{border-color:#33405a}
+  .hidebtn{position:absolute;top:8px;left:8px;width:22px;height:22px;border-radius:50%;padding:0;z-index:3;
+    border:1px solid var(--line);background:rgba(11,14,20,.7);color:var(--muted);font-size:14px;line-height:1;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:.55;transition:opacity .15s}
+  .card:hover .hidebtn{opacity:1}
+  .hidebtn:hover{color:var(--lo);border-color:var(--lo)}
+  .card.hiddenItem{opacity:.6}
+  .card.hiddenItem .hidebtn{color:var(--hi);border-color:var(--hi);opacity:1}
+  .cover{width:74px;height:74px;flex:0 0 auto;border-radius:10px;object-fit:cover;background:#0a0d14;
+    box-shadow:0 3px 10px rgba(0,0,0,.45)}
+  .cover.ph{display:flex;align-items:center;justify-content:center;color:#334;font-size:26px}
+  .info{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:2px}
+  .artist{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .title{font-weight:800;font-size:15px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;font-size:11px;color:var(--muted)}
+  .src{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;background:#1c2436;color:#9fb0cf;letter-spacing:.03em}
+  .src.NAR{background:#2a1f36;color:#c8a3e6}
+  .src.Pitchfork{background:#2a2410;color:#e6c84a}
+  .bnm{font-size:10px;font-weight:800;padding:1px 7px;border-radius:6px;color:#e6c84a;
+    background:rgba(230,200,74,.14);border:1px solid rgba(230,200,74,.4)}
+  .card.bnmCard{border-color:rgba(230,200,74,.5)}
+  .lnk.pf{background:rgba(230,200,74,.12);color:#e6c84a;border-color:rgba(230,200,74,.35)}
+  .links{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+  .lnk{font-size:11px;font-weight:800;padding:4px 9px;border-radius:8px;text-decoration:none;border:1px solid transparent;white-space:nowrap}
+  .lnk.sp{background:rgba(29,185,84,.14);color:var(--spotify);border-color:rgba(29,185,84,.4)}
+  .lnk.ytm{background:rgba(255,59,48,.13);color:#ff7a72;border-color:rgba(255,59,48,.35)}
+  .lnk.yt{background:rgba(255,59,48,.10);color:#ff9a94;border-color:rgba(255,59,48,.28)}
+  .lnk.info{background:#1a2233;color:#9fb0cf;border-color:var(--line)}
+  .lnk:hover{filter:brightness(1.18)}
+  .badge{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:10px;display:flex;
+    align-items:center;justify-content:center;font-weight:900;font-size:15px;border:2px solid}
+  .badge small{font-size:9px;font-weight:700}
+  .rate-hi{color:var(--hi);border-color:var(--hi);background:rgba(47,209,139,.12)}
+  .rate-mid{color:var(--mid);border-color:var(--mid);background:rgba(245,185,66,.12)}
+  .rate-lo{color:var(--lo);border-color:var(--lo);background:rgba(255,107,107,.12)}
+  .rate-nr{color:var(--nr);border-color:var(--nr);background:rgba(90,101,121,.12);font-size:10px}
+
+  /* settings modal */
+  .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:16px}
+  .modal.show{display:flex}
+  .sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;max-width:560px;width:100%;padding:22px}
+  .sheet h3{margin:0 0 6px;font-size:17px}
+  .sheet p{color:var(--muted);font-size:13px;margin:6px 0}
+  .sheet label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:14px 0 5px}
+  .sheet textarea,.sheet input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:9px 11px;font-size:13px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .sheet textarea{height:64px;resize:vertical}
+  .sheet .row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+  code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
+  .empty{color:var(--muted);text-align:center;padding:60px 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>New <span>Album Releases</span></h1>
+    <div class="meta" id="meta">loading…</div>
+    <div class="grow"></div>
+    <input id="q" type="search" placeholder="Filter artist / album…" autocomplete="off">
+    <button class="btn" id="refreshBtn" title="Re-scrape now">↻ Refresh</button>
+    <button class="btn" id="bnmBtn" title="Show only Pitchfork Best New Music">★ BNM <b>0</b></button>
+    <button class="btn" id="hiddenBtn" title="Review albums you removed">🚫 Hidden <b>0</b></button>
+    <button class="btn" id="cfgBtn" title="newalbumreleases.net cookie">⚙</button>
+  </div>
+  <div class="nav" id="nav"></div>
+</header>
+
+<div class="wrap">
+  <div id="progress" class="progress" style="display:none">
+    <div id="progressText">Building…</div>
+    <div class="track"><div class="fill" id="progressFill"></div></div>
+  </div>
+  <div id="content"></div>
+</div>
+
+<div class="modal" id="modal">
+  <div class="sheet">
+    <h3>⚙ newalbumreleases.net feed (optional)</h3>
+    <p>This site is behind Cloudflare and can't be scraped by a server. To include it, paste a
+       <code>cf_clearance</code> cookie from <b>your own browser</b> plus the matching User-Agent.
+       AlbumOfTheYear works without this.</p>
+    <p><b>How:</b> open <code>newalbumreleases.net</code> in your browser → DevTools (F12) →
+       Application ▸ Cookies → copy the <code>cf_clearance</code> value. For the UA, run
+       <code>navigator.userAgent</code> in the Console.</p>
+    <label>cf_clearance cookie value (or full <code>name=value</code>)</label>
+    <textarea id="narCookie" placeholder="cf_clearance=abcd…"></textarea>
+    <label>Your browser User-Agent (must match)</label>
+    <input id="narUA" placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) …">
+    <div class="meta" id="cfgStatus"></div>
+    <div class="row">
+      <button class="btn" id="cfgClose">Close</button>
+      <button class="btn" id="cfgSave" style="color:var(--accent);border-color:var(--accent)">Save &amp; scrape</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let ALBUMS = [], BUILDING = false, pollTimer = null;
+
+// Albums the user removed — persisted per-browser so the preference survives
+// restarts and re-scrapes (keys are stable across scrapes).
+const HKEY = 'nalb_hidden_v1';
+let HIDDEN = loadHidden(), SHOW_HIDDEN = false, SHOW_BNM = false;
+function updateBnmBtn() {
+  const n = ALBUMS.filter((a) => a.bnm).length;
+  const el = $('#bnmBtn'); el.querySelector('b').textContent = n; el.classList.toggle('on', SHOW_BNM);
+}
+function loadHidden() { try { return new Set(JSON.parse(localStorage.getItem(HKEY) || '[]')); } catch { return new Set(); } }
+function saveHidden() { try { localStorage.setItem(HKEY, JSON.stringify([...HIDDEN])); } catch {} }
+function updateHiddenBtn() {
+  const el = $('#hiddenBtn'); el.querySelector('b').textContent = HIDDEN.size;
+  el.classList.toggle('on', SHOW_HIDDEN);
+  el.title = SHOW_HIDDEN ? 'Back to your list' : 'Review albums you removed';
+}
+
+async function load() {
+  try {
+    const r = await fetch('/api/albums'); const d = await r.json();
+    ALBUMS = d.albums || []; BUILDING = d.building;
+    updateMeta(d); updateProgress(d); updateBnmBtn(); render();
+    if (BUILDING && !pollTimer) pollTimer = setInterval(load, 2500);
+    if (!BUILDING && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  } catch { $('#meta').textContent = 'backend not reachable'; }
+}
+
+function updateMeta(d) {
+  const parts = [];
+  if (d.counts) parts.push(`${d.counts.total} albums`);
+  if (d.counts && d.counts.bnm) parts.push(`${d.counts.bnm} ★ Best New Music`);
+  if (d.counts && d.counts.nar) parts.push(`incl. ${d.counts.nar} from NAR`);
+  if (d.updated) parts.push('updated ' + new Date(d.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
+  if (d.narStatus && d.narStatus !== 'ok' && d.narStatus !== 'no-cookie') parts.push('NAR feed: ' + d.narStatus);
+  $('#meta').textContent = parts.join(' · ') || (d.building ? 'building…' : 'no data');
+}
+
+function updateProgress(d) {
+  const box = $('#progress');
+  if (d.building && d.progress && d.progress.total) {
+    box.style.display = 'block';
+    const pct = Math.round(100 * d.progress.done / d.progress.total);
+    $('#progressText').textContent = `Resolving genres & artwork… ${d.progress.done}/${d.progress.total}`;
+    $('#progressFill').style.width = pct + '%';
+  } else box.style.display = 'none';
+}
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function rateClass(r) { return r == null ? 'rate-nr' : r >= 75 ? 'rate-hi' : r >= 60 ? 'rate-mid' : 'rate-lo'; }
+
+const cmp = (a, b) => {
+  const ra = a.rating ?? -1, rb = b.rating ?? -1;
+  if (rb !== ra) return rb - ra;
+  if (!!b.bnm !== !!a.bnm) return (b.bnm ? 1 : 0) - (a.bnm ? 1 : 0); // BNM first among equals
+  const ca = a.ratingCount ?? 0, cb = b.ratingCount ?? 0;
+  if (cb !== ca) return cb - ca;
+  return a.artist.localeCompare(b.artist);
+};
+
+function render() {
+  const term = $('#q').value.trim().toLowerCase();
+  let list = term
+    ? ALBUMS.filter((a) => (a.artist + ' ' + a.album).toLowerCase().includes(term))
+    : ALBUMS;
+  // In normal mode hide removed albums; in "Hidden" mode show only those.
+  list = list.filter((a) => SHOW_HIDDEN ? HIDDEN.has(a.key) : !HIDDEN.has(a.key));
+  if (SHOW_BNM) list = list.filter((a) => a.bnm);
+
+  if (!list.length) {
+    const msg = SHOW_HIDDEN ? 'No hidden albums — remove one with the × on its card.'
+      : BUILDING ? 'Fetching releases…'
+      : 'No albums' + (term ? ' match your filter.' : ' yet.');
+    $('#content').innerHTML = `<div class="empty">${msg}</div>`;
+    $('#nav').innerHTML = ''; return;
+  }
+
+  const groups = {};
+  for (const a of list) (groups[a.genre] ||= []).push(a);
+  for (const k in groups) groups[k].sort(cmp);
+  const names = Object.keys(groups).sort((a, b) =>
+    (a === 'Other') - (b === 'Other') || groups[b].length - groups[a].length || a.localeCompare(b));
+
+  $('#nav').innerHTML = names.map((g) =>
+    `<a class="chip" href="#g-${slug(g)}">${esc(g)}<b>${groups[g].length}</b></a>`).join('');
+
+  $('#content').innerHTML = names.map((g) => `
+    <section id="g-${slug(g)}">
+      <div class="ghead"><h2>${esc(g)}</h2><span class="n">${groups[g].length} album${groups[g].length > 1 ? 's' : ''}</span></div>
+      <div class="grid">${groups[g].map(card).join('')}</div>
+    </section>`).join('');
+}
+
+const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+function card(a) {
+  const cover = a.cover
+    ? `<img class="cover" src="${esc(a.cover)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'cover ph',textContent:'♪'}))">`
+    : `<div class="cover ph">♪</div>`;
+  const badge = a.rating == null
+    ? `<div class="badge rate-nr">NR</div>`
+    : `<div class="badge ${rateClass(a.rating)}">${a.rating}</div>`;
+  const kind = a.ratingKind ? a.ratingKind.replace(' score', '') : '';
+  const cnt = a.ratingCount ? `(${a.ratingCount.toLocaleString()})` : '';
+  const rline = a.rating != null && (kind || cnt) ? `<span>${esc(kind)} ${esc(cnt)}</span>` : '';
+  const srcs = (a.sources || []).map((s) => `<span class="src ${s}">${s === 'Pitchfork' ? 'PF' : s}</span>`).join('');
+  const bnmTag = a.bnm ? `<span class="bnm">★ Best New Music</span>` : '';
+  const pfLink = a.pitchforkUrl ? `<a class="lnk pf" href="${esc(a.pitchforkUrl)}" target="_blank" rel="noopener">Pitchfork</a>` : '';
+  const infoLink = a.aotyUrl
+    ? `<a class="lnk info" href="${esc(a.aotyUrl)}" target="_blank" rel="noopener">AOTY</a>`
+    : (a.appleUrl ? `<a class="lnk info" href="${esc(a.appleUrl)}" target="_blank" rel="noopener">Apple</a>` : '');
+  const hideBtn = SHOW_HIDDEN
+    ? `<button class="hidebtn" data-key="${esc(a.key)}" data-act="restore" title="Restore to your list">↺</button>`
+    : `<button class="hidebtn" data-key="${esc(a.key)}" data-act="hide" title="Remove — I don't like this">×</button>`;
+  return `<div class="card${SHOW_HIDDEN ? ' hiddenItem' : ''}${a.bnm ? ' bnmCard' : ''}">
+    ${hideBtn}
+    ${badge}
+    ${cover}
+    <div class="info">
+      <div class="artist">${esc(a.artist) || '—'}</div>
+      <div class="title">${esc(a.album)}</div>
+      <div class="sub">${bnmTag}${srcs}${a.type ? `<span>${esc(a.type)}</span>` : ''}${a.releaseText ? `<span>${esc(a.releaseText)}</span>` : ''}${rline}</div>
+      <div class="links">
+        <a class="lnk sp" href="${esc(a.links.spotify)}" target="_blank" rel="noopener">Spotify</a>
+        <a class="lnk ytm" href="${esc(a.links.ytMusic)}" target="_blank" rel="noopener">YT Music</a>
+        <a class="lnk yt" href="${esc(a.links.youtube)}" target="_blank" rel="noopener">YouTube</a>
+        ${pfLink}${infoLink}
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── controls ────────────────────────────────────────────────
+$('#q').addEventListener('input', render);
+
+// hide / restore an album (event delegation on the album grid)
+$('#content').addEventListener('click', (e) => {
+  const b = e.target.closest('.hidebtn'); if (!b) return;
+  const k = b.dataset.key;
+  if (b.dataset.act === 'hide') HIDDEN.add(k); else HIDDEN.delete(k);
+  saveHidden(); updateHiddenBtn(); render();
+});
+$('#hiddenBtn').addEventListener('click', () => { SHOW_HIDDEN = !SHOW_HIDDEN; if (SHOW_HIDDEN) SHOW_BNM = false; updateHiddenBtn(); updateBnmBtn(); render(); });
+$('#bnmBtn').addEventListener('click', () => { SHOW_BNM = !SHOW_BNM; if (SHOW_BNM) SHOW_HIDDEN = false; updateBnmBtn(); updateHiddenBtn(); render(); });
+$('#refreshBtn').addEventListener('click', async () => {
+  $('#refreshBtn').textContent = '↻ …';
+  await fetch('/api/refresh', { method: 'POST' });
+  setTimeout(() => { $('#refreshBtn').textContent = '↻ Refresh'; load(); }, 400);
+});
+
+const modal = $('#modal');
+$('#cfgBtn').addEventListener('click', async () => {
+  const c = await (await fetch('/api/config')).json();
+  $('#narUA').value = c.narUA || navigator.userAgent;
+  $('#cfgStatus').textContent = c.hasNarCookie ? '✓ A cookie is currently saved.' : 'No cookie saved — AOTY only.';
+  modal.classList.add('show');
+});
+$('#cfgClose').addEventListener('click', () => modal.classList.remove('show'));
+modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
+$('#cfgSave').addEventListener('click', async () => {
+  const narCookie = $('#narCookie').value.trim(), narUA = $('#narUA').value.trim();
+  await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ narCookie, narUA }) });
+  modal.classList.remove('show');
+  setTimeout(load, 600);
+});
+
+updateHiddenBtn();
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "new-album-releases",
+  "version": "1.0.0",
+  "description": "Local web app: newest album releases grouped by genre, sorted by rating, with Spotify/YouTube Music/YouTube links. Sources: AlbumOfTheYear (ratings) + iTunes (genre) + optional newalbumreleases.net feed.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
