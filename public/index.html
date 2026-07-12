@@ -72,6 +72,8 @@
     background:rgba(230,200,74,.14);border:1px solid rgba(230,200,74,.4)}
   .card.bnmCard{border-color:rgba(230,200,74,.5)}
   .lnk.pf{background:rgba(230,200,74,.12);color:#e6c84a;border-color:rgba(230,200,74,.35)}
+  .bnm,.src.Pitchfork{cursor:pointer}
+  .bnm:hover,.src.Pitchfork:hover{filter:brightness(1.3);text-decoration:underline}
   .links{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
   .lnk{font-size:11px;font-weight:800;padding:4px 9px;border-radius:8px;text-decoration:none;border:1px solid transparent;white-space:nowrap}
   .lnk.sp{background:rgba(29,185,84,.14);color:var(--spotify);border-color:rgba(29,185,84,.4)}
@@ -254,8 +256,9 @@ function card(a) {
   const kind = a.ratingKind ? a.ratingKind.replace(' score', '') : '';
   const cnt = a.ratingCount ? `(${a.ratingCount.toLocaleString()})` : '';
   const rline = a.rating != null && (kind || cnt) ? `<span>${esc(kind)} ${esc(cnt)}</span>` : '';
-  const srcs = (a.sources || []).map((s) => `<span class="src ${s}">${s === 'Pitchfork' ? 'PF' : s}</span>`).join('');
-  const bnmTag = a.bnm ? `<span class="bnm">★ Best New Music</span>` : '';
+  const srcs = (a.sources || []).map((s) =>
+    `<span class="src ${s}"${s === 'Pitchfork' ? ' title="Filter: Pitchfork picks"' : ''}>${s === 'Pitchfork' ? 'PF' : s}</span>`).join('');
+  const bnmTag = a.bnm ? `<span class="bnm" title="Filter: Best New Music">★ Best New Music</span>` : '';
   const pfLink = a.pitchforkUrl ? `<a class="lnk pf" href="${esc(a.pitchforkUrl)}" target="_blank" rel="noopener">Pitchfork</a>` : '';
   const infoLink = a.aotyUrl
     ? `<a class="lnk info" href="${esc(a.aotyUrl)}" target="_blank" rel="noopener">AOTY</a>`
@@ -284,12 +287,22 @@ function card(a) {
 // ── controls ────────────────────────────────────────────────
 $('#q').addEventListener('input', render);
 
-// hide / restore an album (event delegation on the album grid)
+// event delegation on the album grid: hide/restore + click-to-filter chips
 $('#content').addEventListener('click', (e) => {
-  const b = e.target.closest('.hidebtn'); if (!b) return;
-  const k = b.dataset.key;
-  if (b.dataset.act === 'hide') HIDDEN.add(k); else HIDDEN.delete(k);
-  saveHidden(); updateHiddenBtn(); render();
+  const b = e.target.closest('.hidebtn');
+  if (b) {
+    const k = b.dataset.key;
+    if (b.dataset.act === 'hide') HIDDEN.add(k); else HIDDEN.delete(k);
+    saveHidden(); updateHiddenBtn(); render();
+    return;
+  }
+  // clicking the PF chip or the ★ Best New Music badge toggles the BNM filter
+  if (e.target.closest('.bnm, .src.Pitchfork')) {
+    SHOW_BNM = !SHOW_BNM;
+    if (SHOW_BNM) SHOW_HIDDEN = false;
+    updateBnmBtn(); updateHiddenBtn(); render();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
 });
 $('#hiddenBtn').addEventListener('click', () => { SHOW_HIDDEN = !SHOW_HIDDEN; if (SHOW_HIDDEN) SHOW_BNM = false; updateHiddenBtn(); updateBnmBtn(); render(); });
 $('#bnmBtn').addEventListener('click', () => { SHOW_BNM = !SHOW_BNM; if (SHOW_BNM) SHOW_HIDDEN = false; updateBnmBtn(); updateHiddenBtn(); render(); });
