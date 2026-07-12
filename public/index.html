@@ -50,7 +50,18 @@
   .wrap{max-width:1200px;margin:0 auto;padding:8px 20px 80px}
   .progress{margin:20px 0;color:var(--muted);font-size:13px}
   .track{height:8px;background:var(--panel);border-radius:999px;overflow:hidden;margin-top:8px;border:1px solid var(--line)}
-  .fill{height:100%;background:linear-gradient(90deg,var(--accent),#9b6efe);width:0;transition:width .4s}
+  .fill{height:100%;background:linear-gradient(90deg,var(--accent),#9b6efe);width:0;transition:width .4s;border-radius:999px}
+  .fill.indet{transition:none;animation:indet 1.15s ease-in-out infinite}
+  @keyframes indet{0%{width:12%;margin-left:0}50%{width:52%}100%{width:12%;margin-left:88%}}
+  .slideshow{margin-top:14px;min-height:60px}
+  .slide{display:flex;align-items:center;gap:12px;animation:slidein .45s ease}
+  .slide .th,.slide img{width:52px;height:52px;flex:0 0 auto;border-radius:9px;object-fit:cover;background:#0a0d14;box-shadow:0 3px 10px rgba(0,0,0,.4)}
+  .slide .th{display:flex;align-items:center;justify-content:center;color:#334;font-size:22px}
+  .slide .si{min-width:0}
+  .slide .sart{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slide .stit{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60vw}
+  .slide .sgen{font-size:11px;color:var(--accent);margin-top:1px}
+  @keyframes slidein{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
 
   section{margin:26px 0 8px}
   .ghead{display:flex;align-items:baseline;gap:10px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
@@ -151,6 +162,7 @@
   <div id="progress" class="progress" style="display:none">
     <div id="progressText">Building…</div>
     <div class="track"><div class="fill" id="progressFill"></div></div>
+    <div id="slideshow" class="slideshow"></div>
   </div>
   <div id="content"></div>
 </div>
@@ -225,14 +237,41 @@ function updateMeta(d) {
 }
 
 function updateProgress(d) {
-  const box = $('#progress');
-  if (d.building && d.progress && d.progress.total) {
+  const box = $('#progress'), fill = $('#progressFill');
+  if (d.building) {
     box.style.display = 'block';
-    const pct = Math.round(100 * d.progress.done / d.progress.total);
-    $('#progressText').textContent = `Resolving genres & artwork… ${d.progress.done}/${d.progress.total}`;
-    $('#progressFill').style.width = pct + '%';
-  } else box.style.display = 'none';
+    const total = d.progress && d.progress.total, done = (d.progress && d.progress.done) || 0;
+    if (total) {
+      fill.classList.remove('indet');
+      fill.style.marginLeft = '0';
+      fill.style.width = Math.round(100 * done / total) + '%';
+      $('#progressText').textContent = `Resolving genres & artwork… ${done}/${total}`;
+    } else {
+      fill.classList.add('indet'); // no total yet → moving bar
+      $('#progressText').textContent = 'Fetching releases…';
+    }
+    startSlideshow();
+  } else {
+    box.style.display = 'none';
+    stopSlideshow();
+  }
 }
+
+// A "now resolving" slideshow: cycle through albums (favouring ones whose cover
+// has already come in) so the build feels alive and shows what's downloading.
+let slideTimer = null, slideN = 0;
+function renderSlide() {
+  const box = $('#slideshow'); if (!box) return;
+  const withCover = ALBUMS.filter((a) => a.cover);
+  const pool = withCover.length > 4 ? withCover : ALBUMS;
+  if (!pool.length) { box.innerHTML = ''; return; }
+  const a = pool[slideN++ % pool.length];
+  const art = a.cover ? `<img src="${esc(a.cover)}" alt="">` : `<div class="th">♪</div>`;
+  const gen = a.genre && a.genre !== 'Other' ? `<div class="sgen">${esc(a.genre)}${a.rating != null ? ' · ' + a.rating : ''}</div>` : '';
+  box.innerHTML = `<div class="slide">${art}<div class="si"><div class="sart">${esc(a.artist) || '—'}</div><div class="stit">${esc(a.album)}</div>${gen}</div></div>`;
+}
+function startSlideshow() { if (slideTimer) return; renderSlide(); slideTimer = setInterval(renderSlide, 900); }
+function stopSlideshow() { if (slideTimer) { clearInterval(slideTimer); slideTimer = null; } const b = $('#slideshow'); if (b) b.innerHTML = ''; }
 
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
