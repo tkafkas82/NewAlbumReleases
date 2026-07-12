@@ -14,7 +14,10 @@ YouTube** links.
 
 > **Not available:** Rough Trade and AOTY's own "albums of the month/year" pages are Cloudflare-blocked to servers, so they can't be scraped. Pitchfork Best New Music serves as the curated critical list instead.
 
-Streaming buttons are plain search deep-links (no API keys, no login).
+Streaming buttons (Spotify / YouTube Music / YouTube) are plain search deep-links
+(no API keys, no login). The **Bandcamp** button is different: it's resolved to a
+real album page via Bandcamp's public search and only shown when the album is
+actually on Bandcamp (strict artist+album match; cached).
 
 ## Run
 ```bash

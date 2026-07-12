@@ -79,6 +79,7 @@
   .lnk.sp{background:rgba(29,185,84,.14);color:var(--spotify);border-color:rgba(29,185,84,.4)}
   .lnk.ytm{background:rgba(255,59,48,.13);color:#ff7a72;border-color:rgba(255,59,48,.35)}
   .lnk.yt{background:rgba(255,59,48,.10);color:#ff9a94;border-color:rgba(255,59,48,.28)}
+  .lnk.bc{background:rgba(29,160,195,.13);color:#57c4e3;border-color:rgba(29,160,195,.42)}
   .lnk.info{background:#1a2233;color:#9fb0cf;border-color:var(--line)}
   .lnk:hover{filter:brightness(1.18)}
   .badge{position:absolute;top:10px;right:10px;width:38px;height:38px;border-radius:10px;display:flex;
@@ -259,6 +260,7 @@ function card(a) {
   const srcs = (a.sources || []).map((s) =>
     `<span class="src ${s}"${s === 'Pitchfork' ? ' title="Filter: Pitchfork picks"' : ''}>${s === 'Pitchfork' ? 'PF' : s}</span>`).join('');
   const bnmTag = a.bnm ? `<span class="bnm" title="Filter: Best New Music">★ Best New Music</span>` : '';
+  const bcLink = a.bandcampUrl ? `<a class="lnk bc" href="${esc(a.bandcampUrl)}" target="_blank" rel="noopener">Bandcamp</a>` : '';
   const pfLink = a.pitchforkUrl ? `<a class="lnk pf" href="${esc(a.pitchforkUrl)}" target="_blank" rel="noopener">Pitchfork</a>` : '';
   const infoLink = a.aotyUrl
     ? `<a class="lnk info" href="${esc(a.aotyUrl)}" target="_blank" rel="noopener">AOTY</a>`
@@ -278,7 +280,7 @@ function card(a) {
         <a class="lnk sp" href="${esc(a.links.spotify)}" target="_blank" rel="noopener">Spotify</a>
         <a class="lnk ytm" href="${esc(a.links.ytMusic)}" target="_blank" rel="noopener">YT Music</a>
         <a class="lnk yt" href="${esc(a.links.youtube)}" target="_blank" rel="noopener">YouTube</a>
-        ${pfLink}${infoLink}
+        ${bcLink}${pfLink}${infoLink}
       </div>
     </div>
   </div>`;
