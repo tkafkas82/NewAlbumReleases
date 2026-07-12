@@ -2,8 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>New Album Releases · by genre &amp; rating</title>
+<meta name="theme-color" content="#0b0e14">
+<meta name="description" content="Newest album releases by genre, sorted by rating, with streaming links.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Albums">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <style>
   :root{
     --bg:#0b0e14; --panel:#141925; --panel2:#0f1420; --line:#232c3d;
@@ -103,15 +112,33 @@
   .sheet .row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
   code{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 5px;font-size:12px}
   .empty{color:var(--muted);text-align:center;padding:60px 0}
+
+  /* install button + splash */
+  button.btn.install{color:var(--accent);border-color:var(--accent);background:rgba(110,168,254,.12)}
+  #splash{position:fixed;inset:0;z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:22px;background:radial-gradient(900px 500px at 50% 30%,#16213a 0%,#0b0e14 62%);transition:opacity .55s ease}
+  #splash.hide{opacity:0;pointer-events:none}
+  #splash .disc{width:132px;height:132px;border-radius:50%;box-shadow:0 14px 44px rgba(0,0,0,.55);animation:spin 3.4s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #splash .stitle{font-size:24px;font-weight:800;letter-spacing:.2px}
+  #splash .stitle span{color:var(--accent)}
+  #splash .ssub{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.16em;margin-top:-12px}
+  @media (prefers-reduced-motion: reduce){ #splash .disc{animation:none} }
 </style>
 </head>
 <body>
+<div id="splash">
+  <img class="disc" src="icon-512.png" alt="">
+  <div class="stitle">New <span>Album Releases</span></div>
+  <div class="ssub">genre · rating · links</div>
+</div>
 <header>
   <div class="bar">
     <h1>New <span>Album Releases</span></h1>
     <div class="meta" id="meta">loading…</div>
     <div class="grow"></div>
     <input id="q" type="search" placeholder="Filter artist / album…" autocomplete="off">
+    <button class="btn install" id="installBtn" title="Install this app" style="display:none">📲 Install</button>
     <button class="btn" id="refreshBtn" title="Re-scrape now">↻ Refresh</button>
     <button class="btn" id="bnmBtn" title="Show only Pitchfork Best New Music">★ BNM <b>0</b></button>
     <button class="btn" id="hiddenBtn" title="Review albums you removed">🚫 Hidden <b>0</b></button>
@@ -146,6 +173,14 @@
       <button class="btn" id="cfgClose">Close</button>
       <button class="btn" id="cfgSave" style="color:var(--accent);border-color:var(--accent)">Save &amp; scrape</button>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="installHelp">
+  <div class="sheet">
+    <h3>📲 Install this app</h3>
+    <p id="installHelpBody"></p>
+    <div class="row"><button class="btn" id="installHelpClose" style="color:var(--accent);border-color:var(--accent)">Got it</button></div>
   </div>
 </div>
 
@@ -329,6 +364,51 @@ $('#cfgSave').addEventListener('click', async () => {
   modal.classList.remove('show');
   setTimeout(load, 600);
 });
+
+// ── PWA: install prompt, service worker, splash ─────────────
+let deferredPrompt = null;
+const installBtn = $('#installBtn');
+const isStandalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); deferredPrompt = e;
+  if (!isStandalone) installBtn.style.display = '';
+});
+window.addEventListener('appinstalled', () => { installBtn.style.display = 'none'; deferredPrompt = null; });
+// iOS never fires beforeinstallprompt — surface the button so we can show steps.
+if (isIOS && !isStandalone) installBtn.style.display = '';
+
+const help = $('#installHelp');
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null; installBtn.style.display = 'none';
+    return;
+  }
+  $('#installHelpBody').innerHTML = isIOS
+    ? "Tap the <b>Share</b> icon in Safari, then <b>“Add to Home Screen”</b>."
+    : "Open your browser menu and choose <b>“Install app”</b> / <b>“Add to Home screen.”</b>";
+  help.classList.add('show');
+});
+$('#installHelpClose').addEventListener('click', () => help.classList.remove('show'));
+help.addEventListener('click', (e) => { if (e.target === help) help.classList.remove('show'); });
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
+// dismiss splash once loaded (kept up briefly so it reads)
+(function () {
+  const sp = $('#splash'); if (!sp) return;
+  const start = performance.now();
+  const done = () => {
+    const wait = Math.max(0, 1200 - (performance.now() - start));
+    setTimeout(() => { sp.classList.add('hide'); setTimeout(() => sp.remove(), 600); }, wait);
+  };
+  if (document.readyState === 'complete') done(); else addEventListener('load', done);
+})();
 
 updateHiddenBtn();
 load();

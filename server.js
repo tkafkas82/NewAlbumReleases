@@ -29,13 +29,25 @@ async function startBuild() {
       state.done = done; state.total = total;
     },
   })
-    .then(async (data) => { state.data = data; await writeAlbums(data); console.log(`[build] done: ${data.counts.total} albums (AOTY ${data.counts.aoty}, NAR ${data.counts.nar}, feed:${data.narStatus})`); })
+    .then(async (data) => {
+      if (data.albums && data.albums.length) {
+        state.data = data; await writeAlbums(data);
+        console.log(`[build] done: ${data.counts.total} albums (AOTY ${data.counts.aoty}, NAR ${data.counts.nar}, feed:${data.narStatus})`);
+      } else {
+        // A transient source failure yielded nothing — don't cache/serve empty;
+        // keep whatever we had and let the next request retry.
+        console.warn('[build] produced 0 albums (source hiccup) — not caching; will retry');
+        if (state.data && state.data.albums && !state.data.albums.length) state.data = null;
+      }
+    })
     .catch((e) => console.error('[build] failed:', e.message))
     .finally(() => { state.building = false; });
   return true;
 }
 
 app.get('/api/albums', (_req, res) => {
+  // if we have no albums and nothing is building, kick a (re)build
+  if (!state.building && !(state.data && state.data.albums && state.data.albums.length)) startBuild();
   res.json({
     building: state.building,
     progress: { done: state.done, total: state.total },
@@ -67,9 +79,9 @@ app.post('/api/config', async (req, res) => {
   startBuild(); // re-scrape with the new cookie
 });
 
-// Boot: load cache, kick a build if empty/stale.
+// Boot: load cache, kick a build if empty, album-less, or stale.
 state.data = await readAlbums();
-if (!state.data || Date.now() - (state.data.updatedMs || 0) > STALE_MS) startBuild();
+if (!state.data || !(state.data.albums && state.data.albums.length) || Date.now() - (state.data.updatedMs || 0) > STALE_MS) startBuild();
 
 app.listen(PORT, () => {
   console.log(`\n  🎵 New Album Releases  →  http://localhost:${PORT}\n`);
