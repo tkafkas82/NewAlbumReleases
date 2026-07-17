@@ -320,7 +320,9 @@ function render() {
   }
 
   const groups = {};
-  for (const a of list) (groups[a.genre] ||= []).push(a);
+  // Unresolved genres (null/undefined while a build is still resolving them, or
+  // "null" strings) bucket under "Other" rather than a confusing literal "null".
+  for (const a of list) (groups[a.genre && a.genre !== 'null' ? a.genre : 'Other'] ||= []).push(a);
   for (const k in groups) groups[k].sort(cmp);
   const names = Object.keys(groups).sort((a, b) =>
     (a === 'Other') - (b === 'Other') || groups[b].length - groups[a].length || a.localeCompare(b));

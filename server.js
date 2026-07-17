@@ -16,22 +16,34 @@ app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Shared, mutable build state so /api/albums can stream progress to the UI.
-const state = { building: false, done: 0, total: 0, data: null };
+const state = { building: false, done: 0, total: 0, data: null, lastGood: null };
 
 async function startBuild() {
   if (state.building) return false;
   state.building = true; state.done = 0; state.total = 0;
   const config = await readConfig();
+  // Snapshot the last good build so we can keep showing known genres/covers
+  // while the new build re-resolves them (avoids a "null" flood on refresh).
+  const prevByKey = new Map((state.lastGood?.albums || []).map((a) => [a.key, a]));
   buildAlbums({
     config,
     onProgress: ({ albums, done, total }) => {
-      state.data = { ...(state.data || {}), albums };
+      // Don't mutate the build's own objects: copy only the ones still missing a
+      // genre and borrow the previous value so the streaming view stays populated.
+      const display = prevByKey.size
+        ? albums.map((a) => {
+            if (a.genre) return a;
+            const p = prevByKey.get(a.key);
+            return (p && p.genre) ? { ...a, genre: p.genre, cover: a.cover || p.cover, appleUrl: a.appleUrl || p.appleUrl } : a;
+          })
+        : albums;
+      state.data = { ...(state.data || {}), albums: display };
       state.done = done; state.total = total;
     },
   })
     .then(async (data) => {
       if (data.albums && data.albums.length) {
-        state.data = data; await writeAlbums(data);
+        state.data = data; state.lastGood = data; await writeAlbums(data);
         console.log(`[build] done: ${data.counts.total} albums (AOTY ${data.counts.aoty}, NAR ${data.counts.nar}, feed:${data.narStatus})`);
       } else {
         // A transient source failure yielded nothing — don't cache/serve empty;
@@ -81,6 +93,7 @@ app.post('/api/config', async (req, res) => {
 
 // Boot: load cache, kick a build if empty, album-less, or stale.
 state.data = await readAlbums();
+if (state.data && state.data.albums && state.data.albums.length) state.lastGood = state.data;
 if (!state.data || !(state.data.albums && state.data.albums.length) || Date.now() - (state.data.updatedMs || 0) > STALE_MS) startBuild();
 
 app.listen(PORT, () => {
