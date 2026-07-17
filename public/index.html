@@ -245,6 +245,7 @@ async function load() {
 function updateMeta(d) {
   const parts = [];
   if (d.counts) parts.push(`${d.counts.total} albums`);
+  else if (d.albums?.length) parts.push(`${d.albums.length} albums`);
   if (d.counts && d.counts.bnm) parts.push(`${d.counts.bnm} ★ Best New Music`);
   if (d.counts && d.counts.nar) parts.push(`incl. ${d.counts.nar} from NAR`);
   if (d.updated) parts.push('updated ' + new Date(d.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
