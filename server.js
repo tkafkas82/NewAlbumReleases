@@ -16,11 +16,14 @@ app.use(express.json({ limit: '256kb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Shared, mutable build state so /api/albums can stream progress to the UI.
-const state = { building: false, done: 0, total: 0, data: null, lastGood: null };
+const state = { building: false, done: 0, total: 0, data: null, lastGood: null, rerun: false };
 
 async function startBuild() {
-  if (state.building) return false;
-  state.building = true; state.done = 0; state.total = 0;
+  // Already building? Queue one more run for when this finishes, so a config
+  // change (e.g. a freshly-saved NAR cookie) isn't silently dropped — the
+  // in-flight build already read the OLD config at its start.
+  if (state.building) { state.rerun = true; return false; }
+  state.building = true; state.rerun = false; state.done = 0; state.total = 0;
   const config = await readConfig();
   // Snapshot the last good build so we can keep showing known genres/covers
   // while the new build re-resolves them (avoids a "null" flood on refresh).
@@ -53,7 +56,13 @@ async function startBuild() {
       }
     })
     .catch((e) => console.error('[build] failed:', e.message))
-    .finally(() => { state.building = false; });
+    .finally(() => {
+      state.building = false;
+      // A build was requested while this one ran (e.g. cookie saved) → run it
+      // now with the current config. building flips true again synchronously,
+      // so pollers never see a false gap.
+      if (state.rerun) { state.rerun = false; startBuild(); }
+    });
   return true;
 }
 
