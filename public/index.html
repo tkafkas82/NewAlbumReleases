@@ -204,15 +204,18 @@
 <div class="modal" id="modal">
   <div class="sheet">
     <h3>⚙ newalbumreleases.net feed (optional)</h3>
-    <p>This site is behind Cloudflare and can't be scraped by a server. To include it, paste a
-       <code>cf_clearance</code> cookie from <b>your own browser</b> plus the matching User-Agent.
-       AlbumOfTheYear works without this.</p>
-    <p><b>How:</b> open <code>newalbumreleases.net</code> in your browser → DevTools (F12) →
-       Application ▸ Cookies → copy the <code>cf_clearance</code> value. For the UA, run
-       <code>navigator.userAgent</code> in the Console.</p>
+    <p>This site is behind Cloudflare. The app uses Chrome TLS impersonation to fetch it, but you
+       still need a <code>cf_clearance</code> cookie from <b>your own browser</b> plus the exact
+       matching User-Agent. AlbumOfTheYear works without this.</p>
+    <p><b>⏱ The cookie expires in ~30 min</b> — copy it and click Save right away, from the
+       <b>same network/IP</b> as this app.</p>
+    <p><b>How:</b> open <code>newalbumreleases.net</code> in your browser and let the Cloudflare
+       check finish → DevTools (F12) → Application ▸ Cookies → copy the <code>cf_clearance</code>
+       value. For the UA, run <code>navigator.userAgent</code> in the Console
+       <b>and remove the surrounding quotes</b>.</p>
     <label>cf_clearance cookie value (or full <code>name=value</code>)</label>
     <textarea id="narCookie" placeholder="cf_clearance=abcd…"></textarea>
-    <label>Your browser User-Agent (must match)</label>
+    <label>Your browser User-Agent (must match, no quotes)</label>
     <input id="narUA" placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) …">
     <div class="meta" id="cfgStatus"></div>
     <div class="row">
@@ -481,7 +484,9 @@ $('#narBadge').addEventListener('click', openCfg);
 $('#cfgClose').addEventListener('click', () => modal.classList.remove('show'));
 modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
 $('#cfgSave').addEventListener('click', async () => {
-  const narCookie = $('#narCookie').value.trim(), narUA = $('#narUA').value.trim();
+  // Strip surrounding quotes people paste from console output (e.g. 'Mozilla/…').
+  const strip = (s) => s.trim().replace(/^["']|["']$/g, '').trim();
+  const narCookie = strip($('#narCookie').value), narUA = strip($('#narUA').value);
   const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ narCookie, narUA }) });
   try { narConfigured = !!(await r.json()).hasNarCookie; } catch {}
   modal.classList.remove('show');
