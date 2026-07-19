@@ -5,7 +5,7 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { buildAlbums } from './lib/build.js';
-import { readAlbums, writeAlbums, readConfig, writeConfig } from './lib/store.js';
+import { readAlbums, writeAlbums, readConfig } from './lib/store.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 5178;
@@ -19,9 +19,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const state = { building: false, done: 0, total: 0, data: null, lastGood: null, rerun: false };
 
 async function startBuild() {
-  // Already building? Queue one more run for when this finishes, so a config
-  // change (e.g. a freshly-saved NAR cookie) isn't silently dropped — the
-  // in-flight build already read the OLD config at its start.
+  // Already building? Queue one more run for when this finishes so a manual
+  // refresh requested mid-build isn't silently dropped.
   if (state.building) { state.rerun = true; return false; }
   state.building = true; state.rerun = false; state.done = 0; state.total = 0;
   const config = await readConfig();
@@ -47,7 +46,7 @@ async function startBuild() {
     .then(async (data) => {
       if (data.albums && data.albums.length) {
         state.data = data; state.lastGood = data; await writeAlbums(data);
-        console.log(`[build] done: ${data.counts.total} albums (AOTY ${data.counts.aoty}, NAR ${data.counts.nar}, feed:${data.narStatus})`);
+        console.log(`[build] done: ${data.counts.total} albums (AOTY ${data.counts.aoty}, BNM ${data.counts.bnm})`);
       } else {
         // A transient source failure yielded nothing — don't cache/serve empty;
         // keep whatever we had and let the next request retry.
@@ -74,7 +73,6 @@ app.get('/api/albums', (_req, res) => {
     progress: { done: state.done, total: state.total },
     updated: state.data?.updated || null,
     counts: state.data?.counts || null,
-    narStatus: state.data?.narStatus || null,
     albums: state.data?.albums || [],
   });
 });
@@ -82,22 +80,6 @@ app.get('/api/albums', (_req, res) => {
 app.post('/api/refresh', async (_req, res) => {
   const started = await startBuild();
   res.json({ started });
-});
-
-// Config: never echo the cookie back, just whether one is set.
-app.get('/api/config', async (_req, res) => {
-  const c = await readConfig();
-  res.json({ hasNarCookie: !!c.narCookie, narUA: c.narUA || '' });
-});
-
-app.post('/api/config', async (req, res) => {
-  const c = await readConfig();
-  const { narCookie, narUA } = req.body || {};
-  if (typeof narCookie === 'string') c.narCookie = narCookie.trim();
-  if (typeof narUA === 'string') c.narUA = narUA.trim();
-  await writeConfig(c);
-  res.json({ ok: true, hasNarCookie: !!c.narCookie });
-  startBuild(); // re-scrape with the new cookie
 });
 
 // Boot: load cache, kick a build if empty, album-less, or stale.

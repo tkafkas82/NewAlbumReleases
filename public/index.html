@@ -101,7 +101,6 @@
   .title{font-weight:800;font-size:15px;line-height:1.25;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;padding-right:52px}
   .sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px;font-size:11px;color:var(--muted)}
   .src{font-size:10px;font-weight:800;padding:1px 6px;border-radius:6px;background:#1c2436;color:#9fb0cf;letter-spacing:.03em}
-  .src.NAR{background:#2a1f36;color:#c8a3e6}
   .src.Pitchfork{background:#2a2410;color:#e6c84a}
   .bnm{font-size:10px;font-weight:800;padding:1px 7px;border-radius:6px;color:#e6c84a;
     background:rgba(230,200,74,.14);border:1px solid rgba(230,200,74,.4)}
@@ -124,20 +123,6 @@
   .rate-mid{color:var(--mid);border-color:var(--mid);background:rgba(245,185,66,.12)}
   .rate-lo{color:var(--lo);border-color:var(--lo);background:rgba(255,107,107,.12)}
   .rate-nr{color:var(--nr);border-color:var(--nr);background:rgba(90,101,121,.12);font-size:10px}
-
-  /* newalbumreleases.net (NAR) live status badge in the header */
-  .narbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.02em;
-    padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
-    cursor:pointer;white-space:nowrap;line-height:1;transition:filter .15s}
-  .narbadge:hover{filter:brightness(1.25)}
-  .narbadge.on{color:var(--hi);border-color:rgba(47,209,139,.5);background:rgba(47,209,139,.12)}
-  .narbadge.warn{color:var(--mid);border-color:rgba(245,185,66,.5);background:rgba(245,185,66,.12)}
-  .narbadge.err{color:var(--lo);border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.12)}
-  .narbadge.off{color:var(--muted);opacity:.7}
-  .narbadge.pending{color:var(--accent);border-color:var(--accent);background:rgba(110,168,254,.12)}
-  .narbadge.pending::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;
-    animation:narpulse 1s ease-in-out infinite}
-  @keyframes narpulse{0%,100%{opacity:.25}50%{opacity:1}}
 
   /* settings modal */
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:16px}
@@ -183,8 +168,6 @@
     <button class="btn" id="minBtn" title="Hide albums rated under 70 (unrated stay)">≥70</button>
     <button class="btn" id="bnmBtn" title="Show only Pitchfork Best New Music">★ BNM <b>0</b></button>
     <button class="btn" id="hiddenBtn" title="Review albums you removed">🚫 Hidden <b>0</b></button>
-    <button class="narbadge off" id="narBadge" title="newalbumreleases.net status — click to configure">🌐 NAR</button>
-    <button class="btn" id="cfgBtn" title="newalbumreleases.net cookie">⚙</button>
   </div>
   <div class="nav" id="nav"></div>
 </header>
@@ -199,30 +182,6 @@
     <div id="slideshow" class="slideshow"></div>
   </div>
   <div id="content"></div>
-</div>
-
-<div class="modal" id="modal">
-  <div class="sheet">
-    <h3>⚙ newalbumreleases.net feed (optional)</h3>
-    <p>This site is behind Cloudflare. The app uses Chrome TLS impersonation to fetch it, but you
-       still need a <code>cf_clearance</code> cookie from <b>your own browser</b> plus the exact
-       matching User-Agent. AlbumOfTheYear works without this.</p>
-    <p><b>⏱ The cookie expires in ~30 min</b> — copy it and click Save right away, from the
-       <b>same network/IP</b> as this app.</p>
-    <p><b>How:</b> open <code>newalbumreleases.net</code> in your browser and let the Cloudflare
-       check finish → DevTools (F12) → Application ▸ Cookies → copy the <code>cf_clearance</code>
-       value. For the UA, run <code>navigator.userAgent</code> in the Console
-       <b>and remove the surrounding quotes</b>.</p>
-    <label>cf_clearance cookie value (or full <code>name=value</code>)</label>
-    <textarea id="narCookie" placeholder="cf_clearance=abcd…"></textarea>
-    <label>Your browser User-Agent (must match, no quotes)</label>
-    <input id="narUA" placeholder="Mozilla/5.0 (Windows NT 10.0; Win64; x64) …">
-    <div class="meta" id="cfgStatus"></div>
-    <div class="row">
-      <button class="btn" id="cfgClose">Close</button>
-      <button class="btn" id="cfgSave" style="color:var(--accent);border-color:var(--accent)">Save &amp; scrape</button>
-    </div>
-  </div>
 </div>
 
 <div class="modal" id="installHelp">
@@ -270,7 +229,7 @@ async function load() {
   try {
     const r = await fetch('/api/albums'); const d = await r.json();
     ALBUMS = d.albums || []; BUILDING = d.building;
-    updateMeta(d); updateNarBadge(d); updateProgress(d); updateBnmBtn(); render();
+    updateMeta(d); updateProgress(d); updateBnmBtn(); render();
     if (BUILDING && !pollTimer) pollTimer = setInterval(load, 2500);
     if (!BUILDING && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   } catch { $('#meta').textContent = 'backend not reachable'; }
@@ -283,33 +242,6 @@ function updateMeta(d) {
   if (d.counts && d.counts.bnm) parts.push(`${d.counts.bnm} ★ Best New Music`);
   if (d.updated) parts.push('updated ' + new Date(d.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
   $('#meta').textContent = parts.join(' · ') || (d.building ? 'building…' : 'no data');
-}
-
-// Reflect the newalbumreleases.net feed state in the header badge so it's
-// obvious whether that source is being fetched, worked, or needs a cookie.
-let narConfigured = false;
-function updateNarBadge(d) {
-  const el = $('#narBadge'); if (!el) return;
-  const st = d.narStatus, n = (d.counts && d.counts.nar) || 0;
-  let cls, label, title;
-  if (d.building && (narConfigured || (st && st !== 'no-cookie'))) {
-    cls = 'pending'; label = 'NAR…'; title = 'Fetching from newalbumreleases.net…';
-  } else if (st === 'ok') {
-    cls = 'on'; label = n ? `NAR · ${n}` : 'NAR on';
-    title = `Also fetching from newalbumreleases.net — ${n} album${n === 1 ? '' : 's'} came from its feed this build.`;
-  } else if (st === 'challenge-or-empty') {
-    cls = 'warn'; label = 'NAR blocked';
-    title = 'newalbumreleases.net’s Cloudflare check blocked the feed (your cookie has likely expired). Click to update it.';
-  } else if (st && st !== 'no-cookie') {
-    cls = 'err'; label = 'NAR error';
-    title = 'Couldn’t reach newalbumreleases.net: ' + st + '. Click to review settings.';
-  } else {
-    cls = 'off'; label = 'NAR off';
-    title = 'newalbumreleases.net isn’t set up — click to add a cf_clearance cookie so its releases are included.';
-  }
-  el.className = 'narbadge ' + cls;
-  el.textContent = '🌐 ' + label;
-  el.title = title;
 }
 
 function updateProgress(d) {
@@ -471,28 +403,6 @@ $('#refreshBtn').addEventListener('click', async () => {
   setTimeout(() => { $('#refreshBtn').textContent = '↻ Refresh'; load(); }, 400);
 });
 
-const modal = $('#modal');
-async function openCfg() {
-  const c = await (await fetch('/api/config')).json();
-  narConfigured = !!c.hasNarCookie;
-  $('#narUA').value = c.narUA || navigator.userAgent;
-  $('#cfgStatus').textContent = c.hasNarCookie ? '✓ A cookie is currently saved.' : 'No cookie saved — AOTY only.';
-  modal.classList.add('show');
-}
-$('#cfgBtn').addEventListener('click', openCfg);
-$('#narBadge').addEventListener('click', openCfg);
-$('#cfgClose').addEventListener('click', () => modal.classList.remove('show'));
-modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
-$('#cfgSave').addEventListener('click', async () => {
-  // Strip surrounding quotes people paste from console output (e.g. 'Mozilla/…').
-  const strip = (s) => s.trim().replace(/^["']|["']$/g, '').trim();
-  const narCookie = strip($('#narCookie').value), narUA = strip($('#narUA').value);
-  const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ narCookie, narUA }) });
-  try { narConfigured = !!(await r.json()).hasNarCookie; } catch {}
-  modal.classList.remove('show');
-  setTimeout(load, 600);
-});
-
 // ── PWA: install prompt, service worker, splash ─────────────
 let deferredPrompt = null;
 const installBtn = $('#installBtn');
@@ -540,9 +450,6 @@ if ('serviceWorker' in navigator) {
 
 updateHiddenBtn();
 updateMinBtn();
-// Learn whether a NAR cookie is configured up front, so the badge shows the
-// right "off" vs "fetching…" state before the first build data arrives.
-fetch('/api/config').then((r) => r.json()).then((c) => { narConfigured = !!c.hasNarCookie; }).catch(() => {});
 load();
 </script>
 </body>

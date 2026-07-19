@@ -1,6 +1,6 @@
 // Service worker: makes the app installable and works offline. Static shell is
 // cache-first; the live API is network-first (never serve stale album data).
-const CACHE = 'nalb-v4';
+const CACHE = 'nalb-v5';
 const SHELL = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', (e) => {
