@@ -125,6 +125,20 @@
   .rate-lo{color:var(--lo);border-color:var(--lo);background:rgba(255,107,107,.12)}
   .rate-nr{color:var(--nr);border-color:var(--nr);background:rgba(90,101,121,.12);font-size:10px}
 
+  /* newalbumreleases.net (NAR) live status badge in the header */
+  .narbadge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.02em;
+    padding:6px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel2);color:var(--muted);
+    cursor:pointer;white-space:nowrap;line-height:1;transition:filter .15s}
+  .narbadge:hover{filter:brightness(1.25)}
+  .narbadge.on{color:var(--hi);border-color:rgba(47,209,139,.5);background:rgba(47,209,139,.12)}
+  .narbadge.warn{color:var(--mid);border-color:rgba(245,185,66,.5);background:rgba(245,185,66,.12)}
+  .narbadge.err{color:var(--lo);border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.12)}
+  .narbadge.off{color:var(--muted);opacity:.7}
+  .narbadge.pending{color:var(--accent);border-color:var(--accent);background:rgba(110,168,254,.12)}
+  .narbadge.pending::before{content:'';width:7px;height:7px;border-radius:50%;background:currentColor;
+    animation:narpulse 1s ease-in-out infinite}
+  @keyframes narpulse{0%,100%{opacity:.25}50%{opacity:1}}
+
   /* settings modal */
   .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.6);padding:16px}
   .modal.show{display:flex}
@@ -168,6 +182,7 @@
     <button class="btn" id="refreshBtn" title="Re-scrape now">↻ Refresh</button>
     <button class="btn" id="bnmBtn" title="Show only Pitchfork Best New Music">★ BNM <b>0</b></button>
     <button class="btn" id="hiddenBtn" title="Review albums you removed">🚫 Hidden <b>0</b></button>
+    <button class="narbadge off" id="narBadge" title="newalbumreleases.net status — click to configure">🌐 NAR</button>
     <button class="btn" id="cfgBtn" title="newalbumreleases.net cookie">⚙</button>
   </div>
   <div class="nav" id="nav"></div>
@@ -238,7 +253,7 @@ async function load() {
   try {
     const r = await fetch('/api/albums'); const d = await r.json();
     ALBUMS = d.albums || []; BUILDING = d.building;
-    updateMeta(d); updateProgress(d); updateBnmBtn(); render();
+    updateMeta(d); updateNarBadge(d); updateProgress(d); updateBnmBtn(); render();
     if (BUILDING && !pollTimer) pollTimer = setInterval(load, 2500);
     if (!BUILDING && pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   } catch { $('#meta').textContent = 'backend not reachable'; }
@@ -249,10 +264,35 @@ function updateMeta(d) {
   if (d.counts) parts.push(`${d.counts.total} albums`);
   else if (d.albums?.length) parts.push(`${d.albums.length} albums`);
   if (d.counts && d.counts.bnm) parts.push(`${d.counts.bnm} ★ Best New Music`);
-  if (d.counts && d.counts.nar) parts.push(`incl. ${d.counts.nar} from NAR`);
   if (d.updated) parts.push('updated ' + new Date(d.updated).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }));
-  if (d.narStatus && d.narStatus !== 'ok' && d.narStatus !== 'no-cookie') parts.push('NAR feed: ' + d.narStatus);
   $('#meta').textContent = parts.join(' · ') || (d.building ? 'building…' : 'no data');
+}
+
+// Reflect the newalbumreleases.net feed state in the header badge so it's
+// obvious whether that source is being fetched, worked, or needs a cookie.
+let narConfigured = false;
+function updateNarBadge(d) {
+  const el = $('#narBadge'); if (!el) return;
+  const st = d.narStatus, n = (d.counts && d.counts.nar) || 0;
+  let cls, label, title;
+  if (d.building && (narConfigured || (st && st !== 'no-cookie'))) {
+    cls = 'pending'; label = 'NAR…'; title = 'Fetching from newalbumreleases.net…';
+  } else if (st === 'ok') {
+    cls = 'on'; label = n ? `NAR · ${n}` : 'NAR on';
+    title = `Also fetching from newalbumreleases.net — ${n} album${n === 1 ? '' : 's'} came from its feed this build.`;
+  } else if (st === 'challenge-or-empty') {
+    cls = 'warn'; label = 'NAR blocked';
+    title = 'newalbumreleases.net’s Cloudflare check blocked the feed (your cookie has likely expired). Click to update it.';
+  } else if (st && st !== 'no-cookie') {
+    cls = 'err'; label = 'NAR error';
+    title = 'Couldn’t reach newalbumreleases.net: ' + st + '. Click to review settings.';
+  } else {
+    cls = 'off'; label = 'NAR off';
+    title = 'newalbumreleases.net isn’t set up — click to add a cf_clearance cookie so its releases are included.';
+  }
+  el.className = 'narbadge ' + cls;
+  el.textContent = '🌐 ' + label;
+  el.title = title;
 }
 
 function updateProgress(d) {
@@ -410,17 +450,21 @@ $('#refreshBtn').addEventListener('click', async () => {
 });
 
 const modal = $('#modal');
-$('#cfgBtn').addEventListener('click', async () => {
+async function openCfg() {
   const c = await (await fetch('/api/config')).json();
+  narConfigured = !!c.hasNarCookie;
   $('#narUA').value = c.narUA || navigator.userAgent;
   $('#cfgStatus').textContent = c.hasNarCookie ? '✓ A cookie is currently saved.' : 'No cookie saved — AOTY only.';
   modal.classList.add('show');
-});
+}
+$('#cfgBtn').addEventListener('click', openCfg);
+$('#narBadge').addEventListener('click', openCfg);
 $('#cfgClose').addEventListener('click', () => modal.classList.remove('show'));
 modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('show'); });
 $('#cfgSave').addEventListener('click', async () => {
   const narCookie = $('#narCookie').value.trim(), narUA = $('#narUA').value.trim();
-  await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ narCookie, narUA }) });
+  const r = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ narCookie, narUA }) });
+  try { narConfigured = !!(await r.json()).hasNarCookie; } catch {}
   modal.classList.remove('show');
   setTimeout(load, 600);
 });
@@ -471,6 +515,9 @@ if ('serviceWorker' in navigator) {
 })();
 
 updateHiddenBtn();
+// Learn whether a NAR cookie is configured up front, so the badge shows the
+// right "off" vs "fetching…" state before the first build data arrives.
+fetch('/api/config').then((r) => r.json()).then((c) => { narConfigured = !!c.hasNarCookie; }).catch(() => {});
 load();
 </script>
 </body>
