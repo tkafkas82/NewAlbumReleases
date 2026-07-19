@@ -180,6 +180,7 @@
     <input id="q" type="search" placeholder="Filter artist / album…" autocomplete="off">
     <button class="btn install" id="installBtn" title="Install this app" style="display:none">📲 Install</button>
     <button class="btn" id="refreshBtn" title="Re-scrape now">↻ Refresh</button>
+    <button class="btn" id="minBtn" title="Hide albums rated under 70 (unrated stay)">≥70</button>
     <button class="btn" id="bnmBtn" title="Show only Pitchfork Best New Music">★ BNM <b>0</b></button>
     <button class="btn" id="hiddenBtn" title="Review albums you removed">🚫 Hidden <b>0</b></button>
     <button class="narbadge off" id="narBadge" title="newalbumreleases.net status — click to configure">🌐 NAR</button>
@@ -237,6 +238,19 @@ let ALBUMS = [], BUILDING = false, pollTimer = null;
 // restarts and re-scrapes (keys are stable across scrapes).
 const HKEY = 'nalb_hidden_v1';
 let HIDDEN = loadHidden(), SHOW_HIDDEN = false, SHOW_BNM = false;
+
+// Auto-hide albums rated under 70 (unrated/NR are always kept). On by default,
+// persisted per-browser; toggle with the ≥70 button.
+const MIN_RATING = 70, MINKEY = 'nalb_min70_v1';
+let HIDE_LOW = (localStorage.getItem(MINKEY) ?? '1') === '1';
+function saveHideLow() { try { localStorage.setItem(MINKEY, HIDE_LOW ? '1' : '0'); } catch {} }
+function updateMinBtn() {
+  const el = $('#minBtn'); if (!el) return;
+  el.classList.toggle('on', HIDE_LOW);
+  el.title = HIDE_LOW
+    ? `Showing ${MIN_RATING}+ only (unrated kept) — click to include lower-rated albums`
+    : `Showing all ratings — click to hide albums under ${MIN_RATING} (unrated stay)`;
+}
 function updateBnmBtn() {
   const n = ALBUMS.filter((a) => a.bnm).length;
   const el = $('#bnmBtn'); el.querySelector('b').textContent = n; el.classList.toggle('on', SHOW_BNM);
@@ -352,11 +366,15 @@ function render() {
   // In normal mode hide removed albums; in "Hidden" mode show only those.
   list = list.filter((a) => SHOW_HIDDEN ? HIDDEN.has(a.key) : !HIDDEN.has(a.key));
   if (SHOW_BNM) list = list.filter((a) => a.bnm);
+  // Auto-hide low-rated albums (keep unrated). Not applied while reviewing the
+  // manually-hidden list, so those stay fully visible.
+  if (HIDE_LOW && !SHOW_HIDDEN) list = list.filter((a) => a.rating == null || a.rating >= MIN_RATING);
 
   if (!list.length) {
     // While building, the loader panel already says what's happening — don't repeat it here.
     const msg = BUILDING ? ''
       : SHOW_HIDDEN ? 'No hidden albums — remove one with the × on its card.'
+      : (HIDE_LOW && ALBUMS.length && !term) ? `Nothing rated ${MIN_RATING}+ here — click “≥70” to include lower-rated albums.`
       : 'No albums' + (term ? ' match your filter.' : ' yet.');
     $('#content').innerHTML = msg ? `<div class="empty">${msg}</div>` : '';
     $('#nav').innerHTML = ''; return;
@@ -441,6 +459,7 @@ $('#content').addEventListener('click', (e) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 });
+$('#minBtn').addEventListener('click', () => { HIDE_LOW = !HIDE_LOW; saveHideLow(); updateMinBtn(); render(); });
 $('#hiddenBtn').addEventListener('click', () => { SHOW_HIDDEN = !SHOW_HIDDEN; if (SHOW_HIDDEN) SHOW_BNM = false; updateHiddenBtn(); updateBnmBtn(); render(); });
 $('#bnmBtn').addEventListener('click', () => { SHOW_BNM = !SHOW_BNM; if (SHOW_BNM) SHOW_HIDDEN = false; updateBnmBtn(); updateHiddenBtn(); render(); });
 $('#refreshBtn').addEventListener('click', async () => {
@@ -515,6 +534,7 @@ if ('serviceWorker' in navigator) {
 })();
 
 updateHiddenBtn();
+updateMinBtn();
 // Learn whether a NAR cookie is configured up front, so the badge shows the
 // right "off" vs "fetching…" state before the first build data arrives.
 fetch('/api/config').then((r) => r.json()).then((c) => { narConfigured = !!c.hasNarCookie; }).catch(() => {});
